@@ -668,6 +668,7 @@ DECLARE
     V_ENV        VARCHAR;
     V_SQL        VARCHAR;
     V_LOG_SQL    VARCHAR;
+    V_DB_EXISTS  NUMBER;
     V_START      TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP();
     V_STEP_START TIMESTAMP_NTZ;
     V_STEP_MS    NUMBER;
@@ -685,7 +686,7 @@ BEGIN
         V_TOTAL_MS := DATEDIFF(''millisecond'', V_START, CURRENT_TIMESTAMP());
         V_LOG_SQL  := ''CALL BD_ADMIN_INFRA.SH_DEPLOY.LOG_DEPLOY(''
                    || '''''''' || V_PROC    || '''''',''
-                   || ''''''ERROR''''''       || '',''
+                   || ''''''ERROR'''',''
                    || '''''''' || V_COUCHE  || '''''',''
                    || ''NULL,NULL,NULL,''
                    || '''''''' || V_ENV     || '''''',''
@@ -702,7 +703,7 @@ BEGIN
         V_TOTAL_MS := DATEDIFF(''millisecond'', V_START, CURRENT_TIMESTAMP());
         V_LOG_SQL  := ''CALL BD_ADMIN_INFRA.SH_DEPLOY.LOG_DEPLOY(''
                    || '''''''' || V_PROC    || '''''',''
-                   || ''''''ERROR''''''       || '',''
+                   || ''''''ERROR'''',''
                    || '''''''' || V_COUCHE  || '''''',''
                    || ''NULL,NULL,NULL,''
                    || '''''''' || V_ENV     || '''''',''
@@ -719,7 +720,7 @@ BEGIN
     V_TOTAL_MS := DATEDIFF(''millisecond'', V_START,      CURRENT_TIMESTAMP());
     V_LOG_SQL  := ''CALL BD_ADMIN_INFRA.SH_DEPLOY.LOG_DEPLOY(''
                || '''''''' || V_PROC    || '''''',''
-               || ''''''INFO''''''        || '',''
+               || ''''''INFO'''',''
                || '''''''' || V_COUCHE  || '''''',''
                || ''NULL,NULL,NULL,''
                || '''''''' || V_ENV     || '''''',''
@@ -731,12 +732,31 @@ BEGIN
     EXECUTE IMMEDIATE V_LOG_SQL;
 
     -- ------------------------------------------------------------------
-    -- STEP: CREATE_DATABASE
+    -- STEP: CREATE_DATABASE (skip if already exists — no recreate)
     -- ------------------------------------------------------------------
     V_STEP_START := CURRENT_TIMESTAMP();
     V_DB_NAME    := ''BD_'' || V_COUCHE || ''_'' || V_ENV;
 
-    V_SQL := ''CREATE DATABASE IF NOT EXISTS '' || V_DB_NAME
+    SELECT COUNT(*) INTO V_DB_EXISTS FROM INFORMATION_SCHEMA.DATABASES WHERE UPPER(DATABASE_NAME) = UPPER(V_DB_NAME);
+    IF (V_DB_EXISTS > 0) THEN
+        V_STEP_MS  := DATEDIFF(''millisecond'', V_STEP_START, CURRENT_TIMESTAMP());
+        V_TOTAL_MS := DATEDIFF(''millisecond'', V_START,      CURRENT_TIMESTAMP());
+        V_LOG_SQL  := ''CALL BD_ADMIN_INFRA.SH_DEPLOY.LOG_DEPLOY(''
+                   || '''''''' || V_PROC    || '''''',''
+                   || ''''''INFO'''',''
+                   || '''''''' || V_COUCHE  || '''''',''
+                   || ''NULL,NULL,NULL,''
+                   || '''''''' || V_ENV     || '''''',''
+                   || ''NULL,''
+                   || ''''''CREATE_DATABASE'''',''
+                   || ''''''Database '' || V_DB_NAME || '' already exists — skipped.'''',''
+                   || V_STEP_MS::VARCHAR  || '',''
+                   || V_TOTAL_MS::VARCHAR || '')'';
+        EXECUTE IMMEDIATE V_LOG_SQL;
+        RETURN ''INFO: Database '' || V_DB_NAME || '' already exists. No changes applied.'';
+    END IF;
+
+    V_SQL := ''CREATE DATABASE '' || V_DB_NAME
           || '' DATA_RETENTION_TIME_IN_DAYS = 7''
           || '' COMMENT = ''''Provisioned by SP_CREATE_DATABASE''
           || '' - COUCHE='' || V_COUCHE || '' ENV='' || V_ENV || '''''''';
@@ -746,25 +766,25 @@ BEGIN
     V_TOTAL_MS := DATEDIFF(''millisecond'', V_START,      CURRENT_TIMESTAMP());
     V_LOG_SQL  := ''CALL BD_ADMIN_INFRA.SH_DEPLOY.LOG_DEPLOY(''
                || '''''''' || V_PROC    || '''''',''
-               || ''''''INFO''''''        || '',''
+               || ''''''INFO'''',''
                || '''''''' || V_COUCHE  || '''''',''
                || ''NULL,NULL,NULL,''
                || '''''''' || V_ENV     || '''''',''
                || ''NULL,''
                || ''''''CREATE_DATABASE'''',''
-               || ''''''Database '' || V_DB_NAME || '' created (or already exists).'''',''
+               || ''''''Database '' || V_DB_NAME || '' created.'''',''
                || V_STEP_MS::VARCHAR  || '',''
                || V_TOTAL_MS::VARCHAR || '')'';
     EXECUTE IMMEDIATE V_LOG_SQL;
 
-    RETURN ''SUCCESS: '' || V_DB_NAME || '' ready. Total: '' || V_TOTAL_MS || ''ms'';
+    RETURN ''SUCCESS: '' || V_DB_NAME || '' created. Total: '' || V_TOTAL_MS || ''ms'';
 
 EXCEPTION
     WHEN OTHER THEN
         V_TOTAL_MS := DATEDIFF(''millisecond'', V_START, CURRENT_TIMESTAMP());
         V_LOG_SQL  := ''CALL BD_ADMIN_INFRA.SH_DEPLOY.LOG_DEPLOY(''
                    || '''''''' || V_PROC   || '''''',''
-                   || ''''''ERROR''''''      || '',''
+                   || ''''''ERROR'''',''
                    || '''''''' || COALESCE(V_COUCHE, ''UNKNOWN'') || '''''',''
                    || ''NULL,NULL,NULL,''
                    || '''''''' || COALESCE(V_ENV, ''UNKNOWN'')    || '''''',''
