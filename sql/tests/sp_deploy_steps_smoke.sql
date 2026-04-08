@@ -38,6 +38,25 @@ SET test_app    = 'MYAPP';
 -- CALL BD_ADMIN_INFRA.SH_DEPLOY.SP_DEPLOY_SCHEMA_RBAC_DESCRIPTION(
 --   'BRZ','CONCEPTION','ELEC','C001','MYAPP',NULL,NULL,TRUE);
 
+-- Orchestration complète V4 (multi-couches, multi-environnements, avec warehouses)
+-- Charger au préalable : sql/sp_provision_grdf_v4.sql
+-- CALL BD_ADMIN_INFRA.SH_DEPLOY.SP_PROVISION_GRDF_V4(
+--   'ELEC',           -- P_STREAM
+--   '001',            -- suffixe projet, les environnements C/H/P sont ajoutés par la procédure
+--   'MYAPP',          -- P_APP_SOURCE requis si BRZ ou ALL
+--   'OFFRE1',         -- P_OFFRE requis si GLD ou ALL
+--   'UC1',            -- P_USE_CASE requis si GLD ou ALL
+--   'XS',             -- taille WH : XS/S/M/L/XL
+--   TRUE,             -- ignorer les objets déjà présents
+--   TRUE,             -- créer les RF par défaut
+--   'ALL'             -- ALL ou sous-ensemble: BRZ, SLV, GLD, BRZ,SLV, etc.
+-- );
+
+-- Exemples ciblés :
+-- CALL BD_ADMIN_INFRA.SH_DEPLOY.SP_PROVISION_GRDF_V4('ELEC', '001', 'MYAPP', NULL, NULL, 'S', TRUE, TRUE, 'BRZ');
+-- CALL BD_ADMIN_INFRA.SH_DEPLOY.SP_PROVISION_GRDF_V4('ELEC', '001', NULL, NULL, NULL, 'S', TRUE, TRUE, 'SLV');
+-- CALL BD_ADMIN_INFRA.SH_DEPLOY.SP_PROVISION_GRDF_V4('ELEC', '001', NULL, 'OFFRE1', 'UC1', 'M', TRUE, TRUE, 'GLD');
+
 -- Contrôles rapides (noms attendus pour BRZ exemple ci-dessus)
 -- SHOW DATABASES LIKE 'BD_BRZ_CONCEPTION';
 -- SHOW SCHEMAS IN DATABASE BD_BRZ_CONCEPTION;
